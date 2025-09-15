@@ -1,0 +1,109 @@
+name: tfm-bandas
+networks: { tfm_net: {} }
+volumes:  { mysql_data: {} }
+
+services:
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    command: ["start-dev","--import-realm"]
+    volumes:
+      - ./config/keycloak/realm-tfm-bandas.json:/opt/keycloak/data/import/realm-tfm-bandas.json:ro
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports: ["8080:8080"]
+    profiles: ["keycloak"]
+    networks: [tfm_net]
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: tfm_users     # crea una a priori; el resto en init.sql
+    ports: ["3307:3306"]
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/init.d:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 5s
+      timeout: 3s
+      retries: 25
+      start_period: 20s
+    profiles: ["db","users","events"]
+    networks: [tfm_net]
+
+  usuarios:
+    build:
+      context: ${USUARIOS_DIR}
+      dockerfile: Dockerfile
+    depends_on:
+      mysql:    { condition: service_healthy }
+      keycloak: { condition: service_started }
+    environment:
+      SPRING_PROFILES_ACTIVE: docker # perfil Spring, también puede ser: docker o prod
+      # DB Usuarios
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: tfm_users
+      DB_USER: ${USERS_USER}
+      DB_PASS: ${USERS_PASS}
+      # JWT (JWKS de Keycloak accesible desde la red de Docker)
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: ${KC_JWKS}
+    ports: ["8081:8080"]
+    profiles: ["users"]
+    networks: [tfm_net]
+
+  eventos:
+    build:
+      context: ${EVENTS_DIR}
+      dockerfile: Dockerfile
+    depends_on:
+      mysql:    { condition: service_healthy }
+      keycloak: { condition: service_started }
+    environment:
+      SPRING_PROFILES_ACTIVE: docker # perfil Spring, también puede ser: docker o prod
+      # DB Events
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: tfm_events
+      DB_USER: ${EVENTS_USER}
+      DB_PASS: ${EVENTS_PASS}
+      # JWT
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: ${KC_JWKS}
+      # Event Rules
+      EVENTS_RULES_MIN_DURATION_MINUTES: 15
+      EVENTS_RULES_MAX_DURATION_DAYS: 240
+      EVENTS_RULES_ALLOW_OVERLAP_SAME_LOCATION: "true"
+      EVENTS_RULES_ALLOW_CREATE_IN_PAST: "true"
+    ports: ["8083:8080"]
+    profiles: ["events"]
+    networks: [tfm_net]
+
+# Ejemplos de uso:
+# Todos los servicios: 
+#     docker compose --env-file env/local.env --profile keycloak --profile db --profile users --profile events up -d --build
+#     docker compose --profile keycloak --profile db --profile users --profile events up -d --build
+
+# Solo usuarios y eventos: 
+#     docker compose --env-file env/local.env --profile users --profile events up -d --build
+#     docker compose --profile users --profile events up -d --build
+
+# Solo Keycloak + eventos + DB:
+#     docker compose --env-file env/local.env --profile keycloak --profile events --profile db up -d --build
+#     docker compose --profile keycloak --profile events --profile db up -d --build
+
+
+# Cuando se hace un cambio en ../usuarios o ../eventos:
+# 1) mvn -DskipTests package
+# 2) docker compose restart usuarios
+#    o docker compose restart events  
+
+
+# Verificar JWKS (JSON Web Key Set) en Keycloak desde el contenedor de usuarios o eventos:
+# docker compose exec usuarios curl -X GET http://keycloak:8080/realms/tfm-bandas/protocol/openid-connect/certs
+# docker compose exec events curl -X GET http://keycloak:8080/realms/tfm-bandas/protocol/openid-connect/certs
+# o
+# docker compose exec usuarios sh -lc "wget -q -O- http://keycloak:8080/realms/tfm-bandas/protocol/openid-connect/certs | head"
+# docker compose exec events sh -lc "wget -q -O- http://keycloak:8080/realms/tfm-bandas/protocol/openid-connect/certs | head"

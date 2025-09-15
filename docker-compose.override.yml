@@ -1,0 +1,28 @@
+# docker-compose.override.yml - para desarrollo local
+services:
+  usuarios:
+    volumes:
+      - "${USUARIOS_DIR}/target/app.jar:/app/app.jar:ro"
+    # Opcional: logs más verbosos en dev
+    # environment:
+    #   LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY: DEBUG
+    #   LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY_OAUTH2: DEBUG
+
+  eventos:
+    volumes:
+      - "${EVENTS_DIR}/target/app.jar:/app/app.jar:ro"
+    # environment:
+    #   LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY: DEBUG
+    #   LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY_OAUTH2: DEBUG
+
+
+# Como en el pom.xml de los proyectos se genera el JAR compilado en /target/app.jar y en el Dockerfile se copia a /app/app.jar, 
+# montamos ese JAR desde el host al contenedor para evitar tener que reconstruir la imagen en cada cambio.
+# Así, tras compilar con Maven en el host, basta con reiniciar el contenedor
+
+
+# Proceso:
+# 1) Editar código en ../usuarios o ../eventos
+# 2) mvn -DskipTests package
+# 3) docker compose --profile users --profile events up -d --build
+# 4) Probar en http://localhost:8081 (usuarios) o http://localhost:8083 (eventos)
