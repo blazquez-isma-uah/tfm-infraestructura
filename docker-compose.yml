@@ -82,23 +82,36 @@ services:
     networks: [tfm_net]
 
 # Ejemplos de uso:
-# Todos los servicios: 
+# Arrancar todos los servicios: 
 #     docker compose --env-file env/local.env --profile keycloak --profile db --profile users --profile events up -d --build
-#     docker compose --profile keycloak --profile db --profile users --profile events up -d --build
 
-# Solo usuarios y eventos: 
-#     docker compose --env-file env/local.env --profile users --profile events up -d --build
-#     docker compose --profile users --profile events up -d --build
+# Arrancar solo Keycloak
+#     docker compose --env-file env/local.env --profile keycloak up -d
 
-# Solo Keycloak + eventos + DB:
-#     docker compose --env-file env/local.env --profile keycloak --profile events --profile db up -d --build
-#     docker compose --profile keycloak --profile events --profile db up -d --build
+# Arrancar solo la base de datos MySQL
+#     docker compose --env-file env/local.env --profile db up -d
 
+# Arrancar solo Usuarios y sus dependencias (Keycloak + DB):
+#     docker compose --env-file env/local.env --profile keycloak --profile db --profile users up -d
+#   Si mysql y keycloak ya están arriba:
+#     docker compose --profile users up -d
+
+# Arrancar solo Eventos y sus dependencias (Keycloak + DB):
+#     docker compose --env-file env/local.env --profile keycloak --profile db --profile events up -d
+#   Si mysql y keycloak ya están arriba: 
+#     docker compose --env-file env/local.env --profile events up -d
 
 # Cuando se hace un cambio en ../usuarios o ../eventos:
 # 1) mvn -DskipTests package
-# 2) docker compose restart usuarios
-#    o docker compose restart events  
+# 2) docker compose --env-file env/local.env restart <service>
+
+# Parar/bajar todo:
+#     docker compose --env-file env/local.env stop -> para pero no borra
+#     docker compose --env-file env/local.env down -> para y borra
+#     docker compose --env-file env/local.env down -volumes -> para, borra y elimina volúmenes (datos)
+
+# Logs:
+# docker compose --env-file env/local.env logs -f <service>
 
 
 # Verificar JWKS (JSON Web Key Set) en Keycloak desde el contenedor de usuarios o eventos:
