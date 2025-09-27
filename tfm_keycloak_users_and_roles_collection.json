@@ -4,7 +4,8 @@
 		"name": "Keycloak Users & Roles API",
 		"description": "Colección para gestionar roles y usuarios en Keycloak vía Admin API",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "39521410"
+		"_exporter_id": "39521410",
+		"_collection_link": "https://tfm-bandas-2566.postman.co/workspace/TFM-Bandas-Workspace~d4517b4a-e234-4ee5-8c5b-0a7b11ca05fc/collection/39521410-975ba67b-2c33-4d15-8787-a0267f1d9e74?action=share&source=collection_link&creator=39521410"
 	},
 	"item": [
 		{

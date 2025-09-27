@@ -4,9 +4,130 @@
 		"name": "TFM - Microservicio Eventos",
 		"description": "Colección de endpoints para el microservicio de eventos",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "39521410"
+		"_exporter_id": "39521410",
+		"_collection_link": "https://tfm-bandas-2566.postman.co/workspace/TFM-Bandas-Workspace~d4517b4a-e234-4ee5-8c5b-0a7b11ca05fc/collection/39521410-3f9a75f8-4798-4709-a796-bcedd6ed6e0f?action=share&source=collection_link&creator=39521410"
 	},
 	"item": [
+		{
+			"name": "Get Keycloak MUSICIAN Token",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"jsonData = pm.response.json();\r",
+							"pm.environment.set(\"jwt_token\", jsonData.access_token);\r",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "urlencoded",
+					"urlencoded": [
+						{
+							"key": "grant_type",
+							"value": "password",
+							"type": "text"
+						},
+						{
+							"key": "client_id",
+							"value": "frontend-local",
+							"type": "text"
+						},
+						{
+							"key": "username",
+							"value": "ismablazquez",
+							"type": "text"
+						},
+						{
+							"key": "password",
+							"value": "123456",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{keycloak_host}}/realms/{{realm}}/protocol/openid-connect/token",
+					"host": [
+						"{{keycloak_host}}"
+					],
+					"path": [
+						"realms",
+						"{{realm}}",
+						"protocol",
+						"openid-connect",
+						"token"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Keycloak ADMIN Token",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"jsonData = pm.response.json();\r",
+							"pm.environment.set(\"jwt_token\", jsonData.access_token);\r",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "urlencoded",
+					"urlencoded": [
+						{
+							"key": "grant_type",
+							"value": "password",
+							"type": "text"
+						},
+						{
+							"key": "client_id",
+							"value": "frontend-local",
+							"type": "text"
+						},
+						{
+							"key": "username",
+							"value": "admin",
+							"type": "text"
+						},
+						{
+							"key": "password",
+							"value": "admin123",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{keycloak_host}}/realms/{{realm}}/protocol/openid-connect/token",
+					"host": [
+						"{{keycloak_host}}"
+					],
+					"path": [
+						"realms",
+						"{{realm}}",
+						"protocol",
+						"openid-connect",
+						"token"
+					]
+				}
+			},
+			"response": []
+		},
 		{
 			"name": "Crear evento",
 			"request": {
