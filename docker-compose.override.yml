@@ -15,6 +15,13 @@ services:
     #   LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY: DEBUG
     #   LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY_OAUTH2: DEBUG
 
+  gateway:
+    volumes:
+      - "${GATEWAY_DIR}/target/app.jar:/app/app.jar:ro"
+    # Opcional: logs más detallados en desarrollo
+    # environment:
+    #   LOGGING_LEVEL_COM_TFM_BANDAS_GATEWAY: DEBUG
+
 
 # Como en el pom.xml de los proyectos se genera el JAR compilado en /target/app.jar y en el Dockerfile se copia a /app/app.jar, 
 # montamos ese JAR desde el host al contenedor para evitar tener que reconstruir la imagen en cada cambio.

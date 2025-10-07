@@ -8,6 +8,8 @@ services:
     build: 
       context: ./config/keycloak/
       dockerfile: Dockerfile
+    env_file:
+      - env/local.env
     command: ["start-dev","--import-realm"]
     volumes:
       - ./config/keycloak/realm-tfm-bandas.json:/opt/keycloak/data/import/realm-tfm-bandas.json:ro
@@ -18,9 +20,16 @@ services:
       KC_DB_URL: jdbc:mysql://keycloak-mysql:3306/keycloak
       KC_DB_USERNAME: keycloak
       KC_DB_PASSWORD: keycloakpass
-    ports: ["8080:8080"]
+      KC_REALM: ${KC_REALM}
+    ports: ["${KEYCLOAK_PORT}:8080"]
     depends_on:
       keycloak-mysql: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/realms/$${KC_REALM:-tfm-bandas}/protocol/openid-connect/certs || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 180s
     profiles: ["keycloak"]
     networks: [tfm_net]
 
@@ -31,16 +40,18 @@ services:
       MYSQL_USER: keycloak
       MYSQL_PASSWORD: keycloakpass
       MYSQL_ROOT_PASSWORD: rootpass
+    env_file:
+      - env/local.env
     volumes:
       - keycloak_data:/var/lib/mysql
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
-      interval: 5s
-      timeout: 3s
-      retries: 25
-      start_period: 20s
-    ports: ["3308:3306"]   # expone en 3308 para que no choque con tu otro MySQL
-    profiles: ["keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+    ports: ["${KEYCLOAK_MYSQL_PORT}:3306"]   # expone en 3308 para que no choque con tu otro MySQL
+    profiles: ["db","keycloak"]
     networks: [tfm_net]
 
   mysql:
@@ -48,16 +59,18 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: tfm_users     # crea una a priori; el resto en init.sql
-    ports: ["3307:3306"]
+    ports: ["${MYSQL_PORT}:3306"]
+    env_file:
+      - env/local.env
     volumes:
       - mysql_data:/var/lib/mysql
       - ./mysql/init.d:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
-      interval: 5s
-      timeout: 3s
-      retries: 25
-      start_period: 20s
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
     profiles: ["db","users","events"]
     networks: [tfm_net]
 
@@ -65,20 +78,26 @@ services:
     build:
       context: ${USUARIOS_DIR}
       dockerfile: Dockerfile
+    env_file:
+      - env/local.env
     depends_on:
       mysql:    { condition: service_healthy }
       keycloak: { condition: service_started }
     environment:
-      SPRING_PROFILES_ACTIVE: docker # perfil Spring, también puede ser: docker o prod
-      # DB Usuarios
+      SPRING_PROFILES_ACTIVE: docker
       DB_HOST: mysql
       DB_PORT: 3306
-      DB_NAME: tfm_users
+      DB_NAME: ${USERS_DB}
       DB_USER: ${USERS_USER}
       DB_PASS: ${USERS_PASS}
-      # JWT (JWKS de Keycloak accesible desde la red de Docker)
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: ${KC_JWKS}
-    ports: ["8081:8080"]
+    ports: ["${USERS_PORT}:8080"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
     profiles: ["users"]
     networks: [tfm_net]
 
@@ -86,31 +105,69 @@ services:
     build:
       context: ${EVENTS_DIR}
       dockerfile: Dockerfile
+    env_file:
+      - env/local.env
     depends_on:
       mysql:    { condition: service_healthy }
       keycloak: { condition: service_started }
     environment:
-      SPRING_PROFILES_ACTIVE: docker # perfil Spring, también puede ser: docker o prod
-      # DB Events
+      SPRING_PROFILES_ACTIVE: docker
       DB_HOST: mysql
       DB_PORT: 3306
-      DB_NAME: tfm_events
+      DB_NAME: ${EVENTS_DB}
       DB_USER: ${EVENTS_USER}
       DB_PASS: ${EVENTS_PASS}
-      # JWT
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: ${KC_JWKS}
-      # Event Rules
       EVENTS_RULES_MIN_DURATION_MINUTES: 15
       EVENTS_RULES_MAX_DURATION_DAYS: 240
       EVENTS_RULES_ALLOW_OVERLAP_SAME_LOCATION: "true"
       EVENTS_RULES_ALLOW_CREATE_IN_PAST: "true"
-    ports: ["8083:8080"]
+    ports: ["${EVENTS_PORT}:8080"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
     profiles: ["events"]
     networks: [tfm_net]
 
+  gateway:
+    build:
+      context: ${GATEWAY_DIR}
+      dockerfile: Dockerfile
+    env_file:
+      - env/local.env
+    depends_on:
+      keycloak: { condition: service_started }
+      usuarios: { condition: service_healthy }
+      eventos:  { condition: service_healthy }
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: ${KC_JWKS}
+      GATEWAY_USERS_URI: ${GATEWAY_USERS_URI}
+      GATEWAY_EVENTS_URI: ${GATEWAY_EVENTS_URI}
+      GATEWAY_SCORES_URI: ${GATEWAY_SCORES_URI}
+      GATEWAY_SURVEYS_URI: ${GATEWAY_SURVEYS_URI}
+      GATEWAY_USERS_PATH: ${GATEWAY_USERS_PATH}
+      GATEWAY_INSTRUMENTS_PATH: ${GATEWAY_INSTRUMENTS_PATH}
+      GATEWAY_EVENTS_PATH: ${GATEWAY_EVENTS_PATH}
+      GATEWAY_SCORES_PATH: ${GATEWAY_SCORES_PATH}
+      GATEWAY_SURVEYS_PATH: ${GATEWAY_SURVEYS_PATH}
+    ports: ["${GATEWAY_PORT}:8080"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    profiles: ["gateway"]
+    networks: [tfm_net]
+
+
 # Ejemplos de uso:
 # Arrancar todos los servicios: 
-#     docker compose --env-file env/local.env --profile keycloak --profile db --profile users --profile events up -d --build
+#     docker compose --env-file env/local.env --profile keycloak --profile db --profile users --profile events --profile gateway up -d --build
 
 # Arrancar solo Keycloak
 #     docker compose --env-file env/local.env --profile keycloak up -d
