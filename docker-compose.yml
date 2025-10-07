@@ -30,7 +30,7 @@ services:
       timeout: 10s
       retries: 10
       start_period: 180s
-    profiles: ["keycloak"]
+    # profiles: ["keycloak"]
     networks: [tfm_net]
 
   keycloak-mysql:
@@ -51,7 +51,7 @@ services:
       retries: 30
       start_period: 40s
     ports: ["${KEYCLOAK_MYSQL_PORT}:3306"]   # expone en 3308 para que no choque con tu otro MySQL
-    profiles: ["db","keycloak"]
+    # profiles: ["db","keycloak"]
     networks: [tfm_net]
 
   mysql:
@@ -71,7 +71,7 @@ services:
       timeout: 5s
       retries: 30
       start_period: 40s
-    profiles: ["db","users","events"]
+    # profiles: ["db","users","events"]
     networks: [tfm_net]
 
   usuarios:
@@ -98,7 +98,7 @@ services:
       timeout: 10s
       retries: 10
       start_period: 60s
-    profiles: ["users"]
+    # profiles: ["users"]
     networks: [tfm_net]
 
   eventos:
@@ -129,7 +129,7 @@ services:
       timeout: 10s
       retries: 10
       start_period: 60s
-    profiles: ["events"]
+    # profiles: ["events"]
     networks: [tfm_net]
 
   gateway:
@@ -161,7 +161,7 @@ services:
       timeout: 10s
       retries: 10
       start_period: 60s
-    profiles: ["gateway"]
+    # profiles: ["gateway"]
     networks: [tfm_net]
 
 
