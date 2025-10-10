@@ -132,6 +132,33 @@ services:
     # profiles: ["events"]
     networks: [tfm_net]
 
+  identity:
+    build:
+      context: ${IDENTITY_DIR}
+      dockerfile: Dockerfile
+    env_file:
+      - env/local.env
+    depends_on:
+      keycloak: { condition: service_started }
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: ${KC_JWKS}
+      KEYCLOAK_AUTH_URL: ${KC_URL_INTERNAL}
+      KEYCLOAK_REALM: ${KC_REALM}
+      KEYCLOAK_ADMIN_CLIENT_ID: ${KC_ADMIN_CLIENT_ID}
+      KEYCLOAK_ADMIN_CLIENT_SECRET: ${KC_ADMIN_CLIENT_SECRET}
+    ports:
+      - "${IDENTITY_PORT}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    # profiles: ["identity"]
+    networks: [tfm_net]
+
+
   gateway:
     build:
       context: ${GATEWAY_DIR}
